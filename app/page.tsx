@@ -50,6 +50,7 @@ export default function Home() {
   const [bkzSearchTerm, setBkzSearchTerm] = useState("");
   const [bkzSearchResults, setBkzSearchResults] = useState<Heading[]>([]);
   const [selectedBkzHeading, setSelectedBkzHeading] = useState<Heading | null>(null);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   // Auth state kontrolü
   useEffect(() => {
@@ -697,21 +698,43 @@ export default function Home() {
     <div className={`flex flex-col min-h-screen ${mainBg}`}>
       {/* Üst bar */}
       <header
-        className={`sticky top-0 z-30 flex items-center gap-4 border-b ${panelBorder} ${
+        className={`sticky top-0 z-30 flex flex-col md:flex-row items-center gap-2 md:gap-4 border-b ${panelBorder} ${
           theme === "light" ? "bg-white/90" : "bg-zinc-950/80"
-        } px-6 py-3 backdrop-blur-md w-full`}
+        } px-3 md:px-6 py-2 md:py-3 backdrop-blur-md w-full`}
       >
-          {/* Sol: logo + butonlar */}
-          <div className="flex items-center gap-4">
-            <div
-              className={`text-xl font-bold ${
-                theme === "light" ? "text-red-600" : "text-red-400"
-              }`}
-              style={{ fontFamily: 'var(--font-chillax-bold)' }}
-            >
-              İnanç Sözlük
+          {/* Üst satır: Logo + Menü + Auth */}
+          <div className="flex items-center justify-between w-full md:w-auto gap-2 md:gap-4">
+            {/* Sol: Hamburger menü + Logo */}
+            <div className="flex items-center gap-2 md:gap-4">
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className={`md:hidden p-2 rounded-md transition-colors ${
+                  theme === "light"
+                    ? "hover:bg-zinc-100 text-zinc-700"
+                    : "hover:bg-zinc-800 text-zinc-300"
+                }`}
+                aria-label="Menü"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {showMobileMenu ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  )}
+                </svg>
+              </button>
+              <div
+                className={`text-lg md:text-xl font-bold ${
+                  theme === "light" ? "text-red-600" : "text-red-400"
+                }`}
+                style={{ fontFamily: 'var(--font-chillax-bold)' }}
+              >
+                İnanç Sözlük
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 text-xs">
+
+            {/* Filter butonları - Desktop'ta göster */}
+            <div className="hidden md:flex items-center gap-1.5 text-xs">
               <button
                 className={`rounded-full border px-3 py-1 transition-colors ${
                   theme === "light"
@@ -749,17 +772,75 @@ export default function Home() {
                 popüler
               </button>
             </div>
+
+            {/* Sağ: Tema + Auth */}
+            <div className="flex items-center gap-2 text-xs">
+              <button
+                onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
+                className={`rounded-full border px-2 md:px-3 py-1 transition-colors ${
+                  theme === "light"
+                    ? "border-zinc-300 bg-white text-zinc-700 hover:border-red-400 hover:bg-red-50"
+                    : "border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-red-500 hover:bg-zinc-800"
+                }`}
+              >
+                <span className="hidden sm:inline">{theme === "light" ? "karanlık" : "aydınlık"}</span>
+                <span className="sm:hidden">{theme === "light" ? "🌙" : "☀️"}</span>
+              </button>
+              {user ? (
+                <>
+                  <span className="hidden lg:inline text-zinc-400">
+                    {userUsername || user.email?.split("@")[0] || "Kullanıcı"}
+                  </span>
+                  <button
+                    onClick={handleLogout}
+                    className={`rounded-full border px-2 md:px-3 py-1 transition-colors ${
+                      theme === "light"
+                        ? "border-zinc-300 bg-white text-zinc-700 hover:border-red-400 hover:bg-red-50"
+                        : "border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-red-500 hover:bg-zinc-800"
+                    }`}
+                  >
+                    çıkış
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      setAuthMode("login");
+                      setShowAuthModal(true);
+                    }}
+                    className={`rounded-full border px-2 md:px-3 py-1 transition-colors ${
+                      theme === "light"
+                        ? "border-zinc-300 bg-white text-zinc-700 hover:border-red-400 hover:bg-red-50"
+                        : "border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-red-500 hover:bg-zinc-800"
+                    }`}
+                  >
+                    <span className="hidden sm:inline">giriş yap</span>
+                    <span className="sm:hidden">giriş</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAuthMode("signup");
+                      setShowAuthModal(true);
+                    }}
+                    className="hidden md:inline rounded-full bg-red-600 px-3 py-1 text-white hover:bg-red-500"
+                  >
+                    kayıt ol
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
-          {/* Orta: arama */}
-          <div className="mx-auto flex max-w-xl flex-1 items-center">
+          {/* Arama barı - Mobilde tam genişlik */}
+          <div className="w-full md:mx-auto md:max-w-xl md:flex-1">
             <div className="relative w-full">
               <input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyPress={handleSearchKeyPress}
                 placeholder="başlık veya entry ara..."
-                className={`w-full rounded-full border px-4 py-2 text-sm placeholder:text-zinc-500 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 ${
+                className={`w-full rounded-full border px-4 py-2.5 md:py-2 text-base md:text-sm placeholder:text-zinc-500 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 ${
                   theme === "light"
                     ? "border-zinc-300 bg-white text-zinc-800"
                     : "border-zinc-700 bg-zinc-900 text-zinc-100"
@@ -767,78 +848,29 @@ export default function Home() {
               />
               <button
                 onClick={handleSearch}
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-red-600 px-3 py-1 text-xs text-white hover:bg-red-500"
+                className="absolute right-2 md:right-3 top-1/2 -translate-y-1/2 rounded-full bg-red-600 px-3 py-2 md:py-1.5 text-xs text-white hover:bg-red-500 active:bg-red-700 touch-manipulation"
               >
                 Ara
               </button>
             </div>
           </div>
-
-          {/* Sağ: giriş alanı + tema */}
-          <div className="flex items-center gap-2 text-xs">
-            <button
-              onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
-              className={`rounded-full border px-3 py-1 transition-colors ${
-                theme === "light"
-                  ? "border-zinc-300 bg-white text-zinc-700 hover:border-red-400 hover:bg-red-50"
-                  : "border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-red-500 hover:bg-zinc-800"
-              }`}
-            >
-              {theme === "light" ? "karanlık" : "aydınlık"}
-            </button>
-            {user ? (
-              <>
-                <span className="hidden text-zinc-400 sm:inline">
-                  {userUsername || user.email?.split("@")[0] || "Kullanıcı"}
-                </span>
-                <button
-                  onClick={handleLogout}
-                  className={`rounded-full border px-3 py-1 transition-colors ${
-                    theme === "light"
-                      ? "border-zinc-300 bg-white text-zinc-700 hover:border-red-400 hover:bg-red-50"
-                      : "border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-red-500 hover:bg-zinc-800"
-                  }`}
-                >
-                  çıkış
-                </button>
-              </>
-            ) : (
-              <>
-                <span className="hidden text-zinc-400 sm:inline">
-                  Henüz giriş yapılmadı
-                </span>
-                <button
-                  onClick={() => {
-                    setAuthMode("login");
-                    setShowAuthModal(true);
-                  }}
-                  className={`rounded-full border px-3 py-1 transition-colors ${
-                    theme === "light"
-                      ? "border-zinc-300 bg-white text-zinc-700 hover:border-red-400 hover:bg-red-50"
-                      : "border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-red-500 hover:bg-zinc-800"
-                  }`}
-                >
-                  giriş yap
-                </button>
-                <button
-                  onClick={() => {
-                    setAuthMode("signup");
-                    setShowAuthModal(true);
-                  }}
-                  className="hidden rounded-full bg-red-600 px-3 py-1 text-white hover:bg-red-500 sm:inline"
-                >
-                  kayıt ol
-                </button>
-              </>
-            )}
-          </div>
         </header>
+
+      {/* Mobil menü overlay */}
+      {showMobileMenu && (
+        <div
+          className="fixed inset-0 z-40 md:hidden bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowMobileMenu(false)}
+        />
+      )}
 
       {/* Alt kısım: Sol menü + Ana alan */}
       <div className="flex flex-1 min-h-0">
         {/* Sol menü */}
         <aside
-          className={`relative z-20 flex w-72 flex-col border-r ${panelBorder} ${surface} backdrop-blur-sm`}
+          className={`fixed md:relative inset-y-0 left-0 z-50 md:z-20 transform ${
+            showMobileMenu ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+          } transition-transform duration-300 ease-in-out md:transition-none flex w-80 sm:w-72 flex-col border-r ${panelBorder} ${surface} backdrop-blur-sm h-full md:h-auto`}
         >
           <div className={`flex items-center justify-between px-4 py-3 border-b ${panelBorder}`}>
             <span className="text-xs uppercase tracking-wide text-zinc-400">
@@ -850,7 +882,73 @@ export default function Home() {
                 ? "Popüler Başlıklar"
                 : "Başlıklar"}
             </span>
+            <button
+              onClick={() => setShowMobileMenu(false)}
+              className={`md:hidden p-1 rounded-md transition-colors ${
+                theme === "light"
+                  ? "hover:bg-zinc-200 text-zinc-700"
+                  : "hover:bg-zinc-700 text-zinc-300"
+              }`}
+              aria-label="Menüyü kapat"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
+
+          {/* Mobil filter butonları */}
+          <div className={`md:hidden flex flex-wrap gap-2 p-3 border-b ${panelBorder}`}>
+            <button
+              className={`flex-1 min-w-[calc(50%-0.25rem)] rounded-full border px-3 py-2 text-xs transition-colors ${
+                theme === "light"
+                  ? "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-100"
+                  : "border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800"
+              }`}
+              onClick={() => {
+                fetchRandomHeading();
+                setShowMobileMenu(false);
+              }}
+            >
+              rastgele
+            </button>
+            <button
+              className={`flex-1 min-w-[calc(50%-0.25rem)] rounded-full border px-3 py-2.5 text-xs transition-colors touch-manipulation ${
+                theme === "light"
+                  ? "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-100 active:bg-zinc-200"
+                  : "border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800 active:bg-zinc-700"
+              }`}
+              onClick={() => {
+                fetchHeadingsByDay("today");
+                setShowMobileMenu(false);
+              }}
+            >
+              bugün
+            </button>
+            <button
+              className={`flex-1 min-w-[calc(50%-0.25rem)] rounded-full border px-3 py-2.5 text-xs transition-colors touch-manipulation ${
+                theme === "light"
+                  ? "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-100 active:bg-zinc-200"
+                  : "border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800 active:bg-zinc-700"
+              }`}
+              onClick={() => {
+                fetchHeadingsByDay("yesterday");
+                setShowMobileMenu(false);
+              }}
+            >
+              dün
+            </button>
+            <button
+              className={`flex-1 min-w-[calc(50%-0.25rem)] rounded-full border border-red-500/60 bg-red-500/10 px-3 py-2.5 text-xs text-red-300 hover:bg-red-500/20 active:bg-red-500/30 transition-colors touch-manipulation`}
+              onClick={() => {
+                fetchPopularHeadings();
+                setShowMobileMenu(false);
+              }}
+            >
+              popüler
+            </button>
+          </div>
+
           <div className="flex-1 overflow-y-auto">
             {loading && (
               <div className="px-4 py-3 text-sm text-zinc-400">
@@ -866,10 +964,13 @@ export default function Home() {
               {sideMenuHeadings.map((heading) => (
                 <li key={heading.id}>
                   <button
-                    className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                      theme === "light" ? "hover:bg-zinc-200" : "hover:bg-zinc-700"
+                    className={`w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors touch-manipulation ${
+                      theme === "light" ? "hover:bg-zinc-200 active:bg-zinc-300" : "hover:bg-zinc-700 active:bg-zinc-600"
                     }`}
-                    onClick={() => handleSelectHeading(heading)}
+                    onClick={() => {
+                      handleSelectHeading(heading);
+                      setShowMobileMenu(false);
+                    }}
                   >
                     <div className={`font-medium line-clamp-2 ${
                       theme === "light" ? "text-red-600" : "text-red-400"
@@ -889,13 +990,13 @@ export default function Home() {
         {/* Ana alan */}
         <div className="flex flex-1 flex-col min-h-0">
           {/* İçerik */}
-          <main className="flex flex-1 flex-col px-4 py-4 lg:px-6 overflow-y-auto">
+          <main className="flex flex-1 flex-col px-3 sm:px-4 py-3 sm:py-4 lg:px-6 overflow-y-auto">
           {/* Seçili başlık */}
           {selectedHeading ? (
             <>
               {/* Başlık başlığı */}
-              <div className={`mb-4 pb-3 border-b ${panelBorder}`}>
-                <h1 className={`text-xl font-semibold mb-1 ${headingTitleColor}`}>
+              <div className={`mb-3 sm:mb-4 pb-2 sm:pb-3 border-b ${panelBorder}`}>
+                <h1 className={`text-lg sm:text-xl font-semibold mb-1 ${headingTitleColor}`}>
                   {selectedHeading.title}
                 </h1>
                 <span className={`text-xs ${metaTextColor}`}>
@@ -904,7 +1005,7 @@ export default function Home() {
               </div>
 
               {/* Entry listesi - eksisozluk tarzı */}
-              <div className="mb-6 max-h-[65vh] overflow-y-auto">
+              <div className="mb-4 sm:mb-6 max-h-[60vh] sm:max-h-[65vh] overflow-y-auto">
                 {entries.length === 0 && (
                   <div className="py-8 text-center text-sm text-zinc-500">
                     Bu başlıkta henüz entry yok. İlk yazan sen ol.
@@ -916,34 +1017,34 @@ export default function Home() {
                     className="mb-5 pb-5 border-b border-zinc-800/30 last:border-b-0 last:mb-0 last:pb-0"
                   >
                     {/* Oylar */}
-                    <div className="flex items-center justify-end max-w-3xl mx-auto px-4 mb-2 gap-2 text-xs">
+                    <div className="flex items-center justify-end w-full sm:max-w-3xl sm:mx-auto px-2 sm:px-4 mb-2 gap-2 text-xs">
                       <button
                         onClick={() => handleVote(entry.id, 1)}
-                        className={`flex items-center gap-1 rounded-full border px-2 py-1 transition-colors ${
+                        className={`flex items-center gap-1 rounded-full border px-3 py-1.5 sm:px-2 sm:py-1 transition-colors touch-manipulation ${
                           votes[entry.id]?.userVote === 1
                             ? "border-red-500 bg-red-500/10 text-red-300"
-                            : "border-zinc-700 text-zinc-400 hover:border-red-500"
+                            : "border-zinc-700 text-zinc-400 hover:border-red-500 active:bg-zinc-800"
                         }`}
                       >
                         ↑ <span>{votes[entry.id]?.up ?? 0}</span>
                       </button>
                       <button
                         onClick={() => handleVote(entry.id, -1)}
-                        className={`flex items-center gap-1 rounded-full border px-2 py-1 transition-colors ${
+                        className={`flex items-center gap-1 rounded-full border px-3 py-1.5 sm:px-2 sm:py-1 transition-colors touch-manipulation ${
                           votes[entry.id]?.userVote === -1
                             ? "border-red-500 bg-red-500/10 text-red-300"
-                            : "border-zinc-700 text-zinc-400 hover:border-red-500"
+                            : "border-zinc-700 text-zinc-400 hover:border-red-500 active:bg-zinc-800"
                         }`}
                       >
                         ↓ <span>{votes[entry.id]?.down ?? 0}</span>
                       </button>
                     </div>
                     {/* Entry içeriği - ortalanmış ve genişliği sınırlı */}
-                    <div className={`mb-3 text-sm leading-6 max-w-3xl mx-auto px-4 ${entryTextColor}`}>
-                      <p className="whitespace-pre-wrap">{renderEntryContent(entry.content)}</p>
+                    <div className={`mb-3 text-sm sm:text-base leading-7 sm:leading-6 w-full sm:max-w-3xl sm:mx-auto px-2 sm:px-4 ${entryTextColor}`}>
+                      <p className="whitespace-pre-wrap break-words">{renderEntryContent(entry.content)}</p>
                     </div>
                     {/* Yazar ve tarih - sağa hizalı */}
-                    <div className={`flex justify-end items-center text-xs max-w-3xl mx-auto px-4 ${metaTextColor}`}>
+                    <div className={`flex justify-end items-center flex-wrap text-xs w-full sm:max-w-3xl sm:mx-auto px-2 sm:px-4 ${metaTextColor}`}>
                       <span className="font-medium">
                         {entry.author ?? "anonim"}
                       </span>
@@ -963,13 +1064,13 @@ export default function Home() {
               </div>
 
               {/* Entry yazma alanı - eksisozluk tarzı */}
-              <div className="border-t border-zinc-800 pt-5 mt-2">
+              <div className="border-t border-zinc-800 pt-4 sm:pt-5 mt-2">
                 {user ? (
-                  <div className="flex flex-col gap-3 max-w-3xl mx-auto px-4">
+                  <div className="flex flex-col gap-3 w-full sm:max-w-3xl sm:mx-auto px-2 sm:px-4">
                     <textarea
                       value={newEntryContent}
                       onChange={(e) => setNewEntryContent(e.target.value)}
-                      className={`min-h-[120px] w-full resize-y rounded border px-4 py-3 text-sm placeholder:text-zinc-600 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 ${
+                      className={`min-h-[140px] sm:min-h-[120px] w-full resize-y rounded border px-3 sm:px-4 py-3 text-base sm:text-sm placeholder:text-zinc-600 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 ${
                         theme === "light"
                           ? "border-zinc-300 bg-zinc-100 text-zinc-900"
                           : "border-zinc-700 bg-zinc-950/40 text-zinc-100"
@@ -988,7 +1089,7 @@ export default function Home() {
                             handleBkzSearch(e.target.value);
                           }}
                           placeholder="başlık ara..."
-                          className={`w-full rounded-full border px-3 py-2 text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 ${
+                          className={`w-full rounded-full border px-3 py-2.5 sm:py-2 text-base sm:text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 ${
                             theme === "light"
                               ? "border-zinc-300 bg-white text-zinc-800"
                               : "border-zinc-700 bg-zinc-900 text-zinc-100"
@@ -1017,7 +1118,7 @@ export default function Home() {
                         )}
                       </div>
                     )}
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-2 flex-wrap">
                       <button
                         onClick={() => {
                           setShowBkzPanel(!showBkzPanel);
@@ -1026,10 +1127,10 @@ export default function Home() {
                             setBkzSearchResults([]);
                           }
                         }}
-                        className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                        className={`rounded-full border px-4 py-2.5 sm:py-2 text-sm font-medium transition-colors touch-manipulation ${
                           theme === "light"
-                            ? "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-100"
-                            : "border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800"
+                            ? "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-100 active:bg-zinc-200"
+                            : "border-zinc-700 bg-zinc-900 text-zinc-200 hover:border-zinc-500 hover:bg-zinc-800 active:bg-zinc-700"
                         }`}
                       >
                         (bkz:)
@@ -1037,14 +1138,14 @@ export default function Home() {
                       <button
                         onClick={handleSubmitEntry}
                         disabled={!newEntryContent.trim() || submittingEntry}
-                        className="rounded-full bg-red-600 px-5 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:bg-red-400 disabled:text-white disabled:cursor-not-allowed"
+                        className="rounded-full bg-red-600 px-5 py-2.5 sm:py-2 text-sm font-medium text-white hover:bg-red-500 active:bg-red-700 disabled:bg-red-400 disabled:text-white disabled:cursor-not-allowed touch-manipulation"
                       >
                         {submittingEntry ? "gönderiliyor..." : "gönder"}
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="max-w-3xl mx-auto px-4">
+                  <div className="w-full sm:max-w-3xl sm:mx-auto px-2 sm:px-4">
                     <div className="rounded border border-zinc-800 bg-zinc-900/40 p-4 text-center text-sm text-zinc-500">
                       Entry yazmak için{" "}
                       <button
@@ -1072,17 +1173,17 @@ export default function Home() {
               </div>
             </>
           ) : (
-            <section className={`rounded-xl border ${panelBorder} ${panelBg} p-4 shadow-sm`}>
+            <section className={`rounded-xl border ${panelBorder} ${panelBg} p-3 sm:p-4 shadow-sm`}>
               <div className="flex flex-col gap-3 text-sm">
                 <p className={subText}>
                   Yeni bir başlık açmak ister misin?
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="başlık adı"
-                    className={`w-full max-w-md rounded-full border px-4 py-2 text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 ${
+                    className={`w-full sm:max-w-md rounded-full border px-4 py-2.5 sm:py-2 text-base sm:text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 ${
                       theme === "light"
                         ? "border-zinc-300 bg-white text-zinc-800"
                         : "border-zinc-700 bg-zinc-900 text-zinc-100"
@@ -1091,8 +1192,7 @@ export default function Home() {
                   <button
                     onClick={() => handleCreateHeading(searchTerm)}
                     disabled={!searchTerm.trim() || loading}
-                    style={{ backgroundColor: 'var(--color-red-600)' }}
-                    className="rounded-full border border-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:bg-red-400 disabled:text-white disabled:cursor-not-allowed"
+                    className="w-full sm:w-auto rounded-full border border-red-600 bg-red-600 px-4 py-2.5 sm:py-2 text-sm font-medium text-white hover:bg-red-500 active:bg-red-700 disabled:bg-red-400 disabled:text-white disabled:cursor-not-allowed touch-manipulation"
                   >
                     yeni başlık oluştur
                   </button>
@@ -1103,7 +1203,7 @@ export default function Home() {
 
           {/* Arama sonuçları yoksa başlık oluştur */}
           {showSearchResults && searchResults.length === 0 && !loading && searchTerm.trim() && (
-            <section className={`rounded-xl border ${panelBorder} ${panelBg} p-4 shadow-sm`}>
+            <section className={`rounded-xl border ${panelBorder} ${panelBg} p-3 sm:p-4 shadow-sm`}>
               <div className="flex flex-col gap-2">
                 <p className="text-sm text-zinc-400">
                   "{searchTerm}" için başlık bulunamadı. Yeni başlık oluşturmak ister misin?
@@ -1111,7 +1211,7 @@ export default function Home() {
                 <button
                   onClick={() => handleCreateHeading(searchTerm)}
                   disabled={loading}
-                  className="rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:bg-red-400 disabled:text-white disabled:cursor-not-allowed"
+                  className="w-full sm:w-auto rounded-full bg-red-600 px-4 py-2.5 sm:py-2 text-sm font-medium text-white hover:bg-red-500 active:bg-red-700 disabled:bg-red-400 disabled:text-white disabled:cursor-not-allowed touch-manipulation"
                 >
                   "{searchTerm}" başlığını oluştur
                 </button>
@@ -1125,11 +1225,11 @@ export default function Home() {
       {/* Auth Modal */}
       {showAuthModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
           onClick={() => setShowAuthModal(false)}
         >
           <div
-            className="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl"
+            className="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900 p-4 sm:p-6 shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
@@ -1138,7 +1238,8 @@ export default function Home() {
               </h2>
               <button
                 onClick={() => setShowAuthModal(false)}
-                className="rounded-md p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+                className="rounded-md p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 touch-manipulation"
+                aria-label="Kapat"
               >
                 ✕
               </button>
@@ -1153,7 +1254,7 @@ export default function Home() {
                   type={authMode === "login" ? "text" : "email"}
                   value={emailOrUsername}
                   onChange={(e) => setEmailOrUsername(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 sm:py-2 text-base sm:text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
                   placeholder={authMode === "login" ? "email veya kullanıcı adı" : "email@example.com"}
                 />
               </div>
@@ -1167,7 +1268,7 @@ export default function Home() {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
-                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 sm:py-2 text-base sm:text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
                     placeholder="kullanici_adi"
                   />
                   <p className="mt-1 text-xs text-zinc-500">
@@ -1184,7 +1285,7 @@ export default function Home() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 sm:py-2 text-base sm:text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
                   placeholder="••••••••"
                   onKeyPress={(e) => {
                     if (e.key === "Enter") {
@@ -1203,7 +1304,7 @@ export default function Home() {
               <button
                 onClick={authMode === "login" ? handleLogin : handleSignup}
                 disabled={authLoading || !emailOrUsername || !password || (authMode === "signup" && !username)}
-                className="w-full rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed"
+                className="w-full rounded-full bg-red-600 px-4 py-3 sm:py-2 text-sm font-medium text-white hover:bg-red-500 active:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed touch-manipulation"
               >
                 {authLoading
                   ? "Yükleniyor..."
