@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { supabase } from "../lib/supabaseClient";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -558,7 +558,7 @@ export default function Home() {
   function renderEntryContent(content: string) {
     // (bkz: başlık) formatını bul
     const bkzRegex = /\(bkz:\s*([^)]+)\)/gi;
-    const parts: JSX.Element[] = [];
+    const parts: ReactElement[] = [];
     let lastIndex = 0;
     let match;
     let keyIndex = 0;
