@@ -803,31 +803,16 @@ export default function Home() {
                   </button>
                 </>
               ) : (
-                <>
-                  <button
-                    onClick={() => {
-                      setAuthMode("login");
-                      setShowAuthModal(true);
-                    }}
-                    className={`rounded-full border px-2 md:px-3 py-1 transition-colors ${
-                      theme === "light"
-                        ? "border-zinc-300 bg-white text-zinc-700 hover:border-red-400 hover:bg-red-50"
-                        : "border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-red-500 hover:bg-zinc-800"
-                    }`}
-                  >
-                    <span className="hidden sm:inline">giriş yap</span>
-                    <span className="sm:hidden">giriş</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setAuthMode("signup");
-                      setShowAuthModal(true);
-                    }}
-                    className="hidden md:inline rounded-full bg-red-600 px-3 py-1 text-white hover:bg-red-500"
-                  >
-                    kayıt ol
-                  </button>
-                </>
+                <button
+                  onClick={() => {
+                    setAuthMode("login");
+                    setShowAuthModal(true);
+                  }}
+                  className="rounded-full bg-red-600 px-2 md:px-3 py-1 text-white hover:bg-red-500 active:bg-red-700 transition-colors touch-manipulation"
+                >
+                  <span className="hidden sm:inline">giriş yap</span>
+                  <span className="sm:hidden">giriş</span>
+                </button>
               )}
             </div>
           </div>
