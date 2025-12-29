@@ -339,10 +339,16 @@ export default function Home() {
       return;
     }
 
+    // Redirect URL'i belirle (production veya development)
+    const redirectTo = typeof window !== "undefined" 
+      ? `${window.location.origin}/auth/callback`
+      : "https://inancsozluk.vercel.app/auth/callback";
+
     const { data, error } = await supabase.auth.signUp({
       email: emailOrUsername,
       password,
       options: {
+        emailRedirectTo: redirectTo,
         data: {
           username: username.toLowerCase(),
         },
@@ -727,7 +733,7 @@ export default function Home() {
                 className={`text-lg md:text-xl font-bold ${
                   theme === "light" ? "text-red-600" : "text-red-400"
                 }`}
-                style={{ fontFamily: 'var(--font-chillax-bold)' }}
+                style={{ fontFamily: 'var(--font-paciencia)' }}
               >
                 İnanç Sözlük
               </div>

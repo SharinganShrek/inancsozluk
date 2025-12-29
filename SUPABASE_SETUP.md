@@ -162,13 +162,23 @@ INSERT INTO entries (heading_id, content, author) VALUES
 
 Supabase Dashboard'da:
 
-1. **Authentication** → **Settings** → **Auth** sekmesine git
-2. **Enable Email Signup** seçeneğinin açık olduğundan emin ol
-3. **Email Templates** (opsiyonel): Email doğrulama şablonlarını özelleştirebilirsin
-4. **Site URL**: `http://localhost:3000` ekle (development için)
-5. **Redirect URLs**: `http://localhost:3000/**` ekle
+1. **Authentication** → **Settings** → **URL Configuration** sekmesine git
+2. **Site URL**: 
+   - Development için: `http://localhost:3000`
+   - Production için: `https://inancsozluk.vercel.app`
+3. **Redirect URLs**: Şu URL'leri ekle (her birini ayrı satırda):
+   - `http://localhost:3000/**` (development için)
+   - `https://inancsozluk.vercel.app/**` (production için)
+   - `https://inancsozluk.vercel.app/auth/callback` (email confirmation callback için)
 
-**Not**: Email doğrulama zorunlu değil, ama güvenlik için önerilir. Şu an kod email doğrulama olmadan da çalışır.
+4. **Authentication** → **Settings** → **Auth** sekmesine git
+5. **Enable Email Signup** seçeneğinin açık olduğundan emin ol
+6. **Email Templates** (opsiyonel): Email doğrulama şablonlarını özelleştirebilirsin
+
+**ÖNEMLİ**: 
+- Site URL ve Redirect URLs ayarları email confirmation linklerinin doğru çalışması için kritiktir.
+- Production URL'leri mutlaka `https://` ile başlamalıdır.
+- Email confirmation linkleri artık `/auth/callback` route'una yönlendirilecek.
 
 ## 3. Supabase Dashboard'da Kontrol Et
 
