@@ -57,6 +57,7 @@ export default function Home() {
   const [showModeratorPanel, setShowModeratorPanel] = useState(false);
   const [pendingHeadings, setPendingHeadings] = useState<Heading[]>([]);
   const [pendingEntries, setPendingEntries] = useState<Entry[]>([]);
+  const [showRulesModal, setShowRulesModal] = useState(false);
 
   // Auth state kontrolü
   useEffect(() => {
@@ -104,6 +105,12 @@ export default function Home() {
       .single();
     
     setIsModerator(!!moderatorData);
+
+    // Kuralları kabul edip etmediğini kontrol et
+    const rulesAccepted = localStorage.getItem(`rules_accepted_${userId}`);
+    if (!rulesAccepted) {
+      setShowRulesModal(true);
+    }
   }
 
   // Sayfa açıldığında popüler başlıkları getir
@@ -533,7 +540,7 @@ export default function Home() {
       .from("headings")
       .insert({ 
         title: title.trim(),
-        status: "pending"
+        status: "approved"
       })
       .select()
       .single();
@@ -549,8 +556,6 @@ export default function Home() {
       setSelectedHeading(newHeading);
       setSearchTerm("");
       setShowSearchResults(false);
-      // Kullanıcıya bilgi ver
-      alert("Başlığınız moderatör onayına gönderildi. Onaylandıktan sonra yayınlanacaktır.");
     }
 
     setLoading(false);
@@ -612,6 +617,32 @@ export default function Home() {
     const textAfter = newEntryContent.substring(cursorPos);
     const bkzText = `(bkz: ${heading.title})`;
     setNewEntryContent(textBefore + bkzText + textAfter);
+  }
+
+  // Bkz için yeni başlık oluştur
+  async function handleCreateBkzHeading(title: string) {
+    if (!title.trim()) return;
+
+    const { data, error } = await supabase
+      .from("headings")
+      .insert({ 
+        title: title.trim(),
+        status: "approved"
+      })
+      .select()
+      .single();
+
+    if (!error && data) {
+      const newHeading: Heading = {
+        id: data.id,
+        title: data.title,
+        createdAt: data.created_at,
+        entryCount: 0,
+        status: data.status,
+      };
+      // Oluşturulan başlığı seç ve entry'ye ekle
+      handleSelectBkzHeading(newHeading);
+    }
   }
 
   // Entry içeriğini parse edip (bkz:) linklerini render et
@@ -1252,7 +1283,15 @@ export default function Home() {
                           </div>
                         )}
                         {bkzSearchTerm && bkzSearchResults.length === 0 && (
-                          <p className="text-xs text-zinc-500 px-3">Sonuç bulunamadı</p>
+                          <div className="px-3 py-2 space-y-2">
+                            <p className="text-xs text-zinc-500">Sonuç bulunamadı</p>
+                            <button
+                              onClick={() => handleCreateBkzHeading(bkzSearchTerm)}
+                              className="w-full rounded-full bg-red-600 px-4 py-2 text-xs font-medium text-white hover:bg-red-500 active:bg-red-700 transition-colors touch-manipulation"
+                            >
+                              "{bkzSearchTerm}" başlığını oluştur
+                            </button>
+                          </div>
                         )}
                       </div>
                     )}
@@ -1463,6 +1502,49 @@ export default function Home() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Kurallar Modal */}
+      {showRulesModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+        >
+          <div
+            className={`w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl border ${panelBorder} ${panelBg} p-4 sm:p-6 shadow-xl`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4">
+              <h2 className="text-xl font-bold text-zinc-100 mb-2">KURALLAR</h2>
+            </div>
+
+            <div className="space-y-4 text-sm text-zinc-200 mb-6">
+              <p>* Hakaret içeren sözcükler yasaktır.</p>
+              <p>* Eleştiri serbest olmakla birlikte, nefret ve iftira söylemleri yasaktır.</p>
+              <p>* Girdiler yazılırken hiçbir öğrencinin zor durumda kalmaması gözetilmelidir.</p>
+              <p>* Random, flood ve sözlüğün amacının dışına çıkan her türlü girdi silinecektir.</p>
+              <p>* Sözlüğün zenginleşebilmesi adına entry yazarken atıf(bkz:) özelliğini kullanmayı unutmayın.</p>
+              <p>* Hata raporlamak veya platforma dair öneride bulunmak isterseniz:</p>
+              <p className="pl-4">0555 069 68 32</p>
+              <p className="pl-4">emre.akif.arslan@gmail.com</p>
+              <p className="mt-4">* İyi eğlenceler dilerim,</p>
+              <p className="text-right">-Emre'28</p>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  if (user?.id) {
+                    localStorage.setItem(`rules_accepted_${user.id}`, "true");
+                  }
+                  setShowRulesModal(false);
+                }}
+                className="rounded-full bg-red-600 px-6 py-3 text-sm font-medium text-white hover:bg-red-500 active:bg-red-700 transition-colors touch-manipulation"
+              >
+                Okudum, onaylıyorum
+              </button>
             </div>
           </div>
         </div>
