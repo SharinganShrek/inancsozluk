@@ -55,7 +55,6 @@ export default function Home() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [isModerator, setIsModerator] = useState(false);
   const [showModeratorPanel, setShowModeratorPanel] = useState(false);
-  const [pendingHeadings, setPendingHeadings] = useState<Heading[]>([]);
   const [pendingEntries, setPendingEntries] = useState<Entry[]>([]);
   const [showRulesModal, setShowRulesModal] = useState(false);
 
@@ -778,24 +777,6 @@ export default function Home() {
   async function fetchPendingContent() {
     if (!isModerator) return;
 
-    // Bekleyen başlıkları getir
-    const { data: headingsData } = await supabase
-      .from("headings")
-      .select("id, title, created_at, status")
-      .eq("status", "pending")
-      .order("created_at", { ascending: false });
-
-    if (headingsData) {
-      const mapped: Heading[] = headingsData.map((row: any) => ({
-        id: row.id,
-        title: row.title,
-        createdAt: row.created_at,
-        entryCount: 0,
-        status: row.status,
-      }));
-      setPendingHeadings(mapped);
-    }
-
     // Bekleyen entry'leri getir
     const { data: entriesData } = await supabase
       .from("entries")
@@ -813,19 +794,6 @@ export default function Home() {
         status: row.status,
       }));
       setPendingEntries(mapped);
-    }
-  }
-
-  async function updateHeadingStatus(headingId: number, newStatus: "approved" | "rejected") {
-    if (!isModerator) return;
-
-    const { error } = await supabase
-      .from("headings")
-      .update({ status: newStatus })
-      .eq("id", headingId);
-
-    if (!error) {
-      await fetchPendingContent();
     }
   }
 
@@ -1410,12 +1378,16 @@ export default function Home() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-zinc-100">
+              <h2 className={`text-lg font-semibold ${theme === "light" ? "text-zinc-900" : "text-zinc-100"}`}>
                 Moderatör Paneli
               </h2>
               <button
                 onClick={() => setShowModeratorPanel(false)}
-                className="rounded-md p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 touch-manipulation"
+                className={`rounded-md p-2 touch-manipulation ${
+                  theme === "light"
+                    ? "text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900"
+                    : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+                }`}
                 aria-label="Kapat"
               >
                 ✕
@@ -1423,53 +1395,13 @@ export default function Home() {
             </div>
 
             <div className="space-y-6">
-              {/* Bekleyen Başlıklar */}
-              <div>
-                <h3 className="text-sm font-medium text-zinc-300 mb-3">
-                  Bekleyen Başlıklar ({pendingHeadings.length})
-                </h3>
-                {pendingHeadings.length === 0 ? (
-                  <p className="text-sm text-zinc-500">Bekleyen başlık yok.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {pendingHeadings.map((heading) => (
-                      <div
-                        key={heading.id}
-                        className={`flex items-center justify-between p-3 rounded-lg border ${panelBorder}`}
-                      >
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-zinc-100">{heading.title}</p>
-                          <p className="text-xs text-zinc-500">
-                            {new Date(heading.createdAt).toLocaleString("tr-TR")}
-                          </p>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => updateHeadingStatus(heading.id, "approved")}
-                            className="px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-md hover:bg-green-500 active:bg-green-700 touch-manipulation"
-                          >
-                            Onayla
-                          </button>
-                          <button
-                            onClick={() => updateHeadingStatus(heading.id, "rejected")}
-                            className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-500 active:bg-red-700 touch-manipulation"
-                          >
-                            Reddet
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
               {/* Bekleyen Entry'ler */}
               <div>
-                <h3 className="text-sm font-medium text-zinc-300 mb-3">
+                <h3 className={`text-sm font-medium mb-3 ${theme === "light" ? "text-zinc-700" : "text-zinc-300"}`}>
                   Bekleyen Entry'ler ({pendingEntries.length})
                 </h3>
                 {pendingEntries.length === 0 ? (
-                  <p className="text-sm text-zinc-500">Bekleyen entry yok.</p>
+                  <p className={`text-sm ${theme === "light" ? "text-zinc-600" : "text-zinc-500"}`}>Bekleyen entry yok.</p>
                 ) : (
                   <div className="space-y-2">
                     {pendingEntries.map((entry) => (
@@ -1477,9 +1409,9 @@ export default function Home() {
                         key={entry.id}
                         className={`p-3 rounded-lg border ${panelBorder}`}
                       >
-                        <p className="text-sm text-zinc-200 mb-2 whitespace-pre-wrap">{entry.content}</p>
+                        <p className={`text-sm mb-2 whitespace-pre-wrap ${theme === "light" ? "text-zinc-900" : "text-zinc-200"}`}>{entry.content}</p>
                         <div className="flex items-center justify-between">
-                          <p className="text-xs text-zinc-500">
+                          <p className={`text-xs ${theme === "light" ? "text-zinc-600" : "text-zinc-500"}`}>
                             {entry.author} • {new Date(entry.createdAt).toLocaleString("tr-TR")}
                           </p>
                           <div className="flex gap-2">
@@ -1517,10 +1449,10 @@ export default function Home() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4">
-              <h2 className="text-xl font-bold text-zinc-100 mb-2">KURALLAR</h2>
+              <h2 className={`text-xl font-bold mb-2 ${theme === "light" ? "text-zinc-900" : "text-zinc-100"}`}>KURALLAR</h2>
             </div>
 
-            <div className="space-y-4 text-sm text-zinc-200 mb-6">
+            <div className={`space-y-4 text-sm mb-6 ${theme === "light" ? "text-zinc-900" : "text-zinc-200"}`}>
               <p>* Hakaret içeren sözcükler yasaktır.</p>
               <p>* Eleştiri serbest olmakla birlikte, nefret ve iftira söylemleri yasaktır.</p>
               <p>* Girdiler yazılırken hiçbir öğrencinin zor durumda kalmaması gözetilmelidir.</p>
