@@ -446,25 +446,36 @@ export default function Home() {
 
     setSubmittingEntry(true);
 
-    const { data, error } = await supabase
+    // Önce INSERT yap (select olmadan)
+    const { error: insertError } = await supabase
       .from("entries")
       .insert({
         heading_id: selectedHeading.id,
         content: newEntryContent.trim(),
         author: userUsername || user.email?.split("@")[0] || "anonim",
         status: "pending",
-      })
-      .select()
-      .single();
+      });
 
-    if (!error && data) {
-      setNewEntryContent("");
-      setSelectedBkzHeading(null);
-      setShowBkzPanel(false);
-      setBkzSearchTerm("");
-      setBkzSearchResults([]);
-      // Kullanıcıya bilgi ver
-      alert("Entry'niz moderatör onayına gönderildi. Onaylandıktan sonra yayınlanacaktır.");
+    if (insertError) {
+      console.error("Entry oluşturma hatası:", insertError);
+      alert("Entry oluşturulurken bir hata oluştu: " + insertError.message);
+      setSubmittingEntry(false);
+      return;
+    }
+
+    // INSERT başarılı - UI'ı güncelle
+    setNewEntryContent("");
+    setSelectedBkzHeading(null);
+    setShowBkzPanel(false);
+    setBkzSearchTerm("");
+    setBkzSearchResults([]);
+    
+    // Kullanıcıya bilgi ver
+    alert("Entry'niz moderatör onayına gönderildi. Onaylandıktan sonra yayınlanacaktır.");
+    
+    // Eğer moderatör paneli açıksa, bekleyen entry'leri yenile
+    if (isModerator && showModeratorPanel) {
+      await fetchPendingContent();
     }
 
     setSubmittingEntry(false);
@@ -778,11 +789,16 @@ export default function Home() {
     if (!isModerator) return;
 
     // Bekleyen entry'leri getir
-    const { data: entriesData } = await supabase
+    const { data: entriesData, error } = await supabase
       .from("entries")
       .select("id, heading_id, content, author, created_at, status")
       .eq("status", "pending")
       .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Bekleyen entry'leri getirme hatası:", error);
+      return;
+    }
 
     if (entriesData) {
       const mapped: Entry[] = entriesData.map((row: any) => ({
@@ -794,6 +810,8 @@ export default function Home() {
         status: row.status,
       }));
       setPendingEntries(mapped);
+    } else {
+      setPendingEntries([]);
     }
   }
 

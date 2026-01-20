@@ -75,7 +75,7 @@ CREATE POLICY "Headings are viewable by everyone"
     )
   );
 
--- Entries: Sadece approved olanlar herkese görünür, pending/rejected olanlar sadece moderatörlere
+-- Entries: Sadece approved olanlar herkese görünür, pending/rejected olanlar sadece moderatörlere ve entry sahibine
 CREATE POLICY "Entries are viewable by everyone"
   ON entries FOR SELECT
   USING (
@@ -83,6 +83,26 @@ CREATE POLICY "Entries are viewable by everyone"
     EXISTS (
       SELECT 1 FROM moderators 
       WHERE moderators.user_id = auth.uid()
+    )
+  );
+
+-- Kullanıcılar kendi oluşturdukları pending entry'leri görebilir (INSERT sonrası select için gerekli)
+CREATE POLICY "Users can view their own pending entries"
+  ON entries FOR SELECT
+  USING (
+    status = 'pending' AND
+    EXISTS (
+      SELECT 1 FROM auth.users
+      WHERE auth.users.id = auth.uid()
+      AND (
+        -- Eğer author email ise
+        entries.author = split_part(auth.users.email, '@', 1)
+        OR
+        -- Eğer author username ise (user_profiles'den kontrol et)
+        entries.author IN (
+          SELECT username FROM user_profiles WHERE user_id = auth.uid()
+        )
+      )
     )
   );
 
