@@ -11,6 +11,7 @@ type Heading = {
   title: string;
   createdAt: string;
   entryCount: number;
+  status?: "pending" | "approved" | "rejected";
 };
 
 type Entry = {
@@ -19,6 +20,7 @@ type Entry = {
   content: string;
   createdAt: string;
   author?: string | null;
+  status?: "pending" | "approved" | "rejected";
 };
 
 export default function Home() {
@@ -51,6 +53,10 @@ export default function Home() {
   const [bkzSearchResults, setBkzSearchResults] = useState<Heading[]>([]);
   const [selectedBkzHeading, setSelectedBkzHeading] = useState<Heading | null>(null);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [isModerator, setIsModerator] = useState(false);
+  const [showModeratorPanel, setShowModeratorPanel] = useState(false);
+  const [pendingHeadings, setPendingHeadings] = useState<Heading[]>([]);
+  const [pendingEntries, setPendingEntries] = useState<Entry[]>([]);
 
   // Auth state kontrolü
   useEffect(() => {
@@ -89,6 +95,15 @@ export default function Home() {
     if (data) {
       setUserUsername(data.username);
     }
+    
+    // Moderatör kontrolü
+    const { data: moderatorData } = await supabase
+      .from("moderators")
+      .select("id")
+      .eq("user_id", userId)
+      .single();
+    
+    setIsModerator(!!moderatorData);
   }
 
   // Sayfa açıldığında popüler başlıkları getir
@@ -115,38 +130,57 @@ export default function Home() {
 
         const { data: headingsData, error: headingsError } = await supabase
           .from("headings")
-          .select(`
-            id,
-            title,
-            created_at,
-            entries!inner(id)
-          `)
-          .gte("entries.created_at", oneWeekAgo.toISOString())
+          .select("id, title, created_at, status")
+          .eq("status", "approved")
+          .gte("created_at", oneWeekAgo.toISOString())
           .order("created_at", { ascending: false })
           .limit(50);
 
         if (!headingsError && headingsData) {
-          // Entry sayılarını hesapla
-          const headingMap = new Map<number, Heading>();
-          headingsData.forEach((h: any) => {
-            if (!headingMap.has(h.id)) {
-              headingMap.set(h.id, {
-                id: h.id,
-                title: h.title,
-                createdAt: h.created_at,
-                entryCount: 0,
-              });
-            }
-            headingMap.get(h.id)!.entryCount++;
+          // Entry sayılarını ayrı sorgu ile al (sadece approved)
+          const headingIds = headingsData.map((h: any) => h.id);
+          const { data: entryCounts } = await supabase
+            .from("entries")
+            .select("heading_id")
+            .eq("status", "approved")
+            .in("heading_id", headingIds)
+            .gte("created_at", oneWeekAgo.toISOString());
+
+          const countMap = new Map<number, number>();
+          entryCounts?.forEach((e: any) => {
+            countMap.set(e.heading_id, (countMap.get(e.heading_id) || 0) + 1);
           });
-          setSideMenuHeadings(Array.from(headingMap.values()));
+
+          const mapped: Heading[] = headingsData.map((row: any) => ({
+            id: row.id,
+            title: row.title,
+            createdAt: row.created_at,
+            entryCount: countMap.get(row.id) ?? 0,
+            status: row.status,
+          }));
+          setSideMenuHeadings(mapped);
         }
       } else if (data) {
+        // View'dan gelen entry_count sadece son 7 günü kapsıyor
+        // Tüm entry'leri saymak için ayrı sorgu yapalım
+        const headingIds = data.map((row: any) => row.id);
+        const { data: entryCounts } = await supabase
+          .from("entries")
+          .select("heading_id")
+          .eq("status", "approved")
+          .in("heading_id", headingIds);
+
+        const countMap = new Map<number, number>();
+        entryCounts?.forEach((e: any) => {
+          countMap.set(e.heading_id, (countMap.get(e.heading_id) || 0) + 1);
+        });
+
         const mapped: Heading[] = data.map((row: any) => ({
           id: row.id,
           title: row.title,
           createdAt: row.created_at,
-          entryCount: row.entry_count ?? 0,
+          entryCount: countMap.get(row.id) ?? 0,
+          status: row.status,
         }));
         setSideMenuHeadings(mapped);
       }
@@ -182,22 +216,19 @@ export default function Home() {
     try {
       const { data, error } = await supabase
         .from("headings")
-        .select(`
-          id,
-          title,
-          created_at,
-          entries(count)
-        `)
+        .select("id, title, created_at, status")
+        .eq("status", "approved")
         .gte("created_at", start.toISOString())
         .lte("created_at", end.toISOString())
         .order("created_at", { ascending: false });
 
       if (!error && data) {
-        // Entry count'ları ayrı sorgu ile al
+        // Entry count'ları ayrı sorgu ile al (sadece approved)
         const headingIds = data.map((h: any) => h.id);
         const { data: entryCounts } = await supabase
           .from("entries")
           .select("heading_id")
+          .eq("status", "approved")
           .in("heading_id", headingIds);
 
         const countMap = new Map<number, number>();
@@ -210,6 +241,7 @@ export default function Home() {
           title: row.title,
           createdAt: row.created_at,
           entryCount: countMap.get(row.id) ?? 0,
+          status: row.status,
         }));
         setSideMenuHeadings(mapped);
       }
@@ -226,7 +258,8 @@ export default function Home() {
 
     const { data, error } = await supabase
       .from("headings")
-      .select("id, title, created_at")
+      .select("id, title, created_at, status")
+      .eq("status", "approved")
       .limit(1000);
 
     if (!error && data && data.length > 0) {
@@ -236,6 +269,7 @@ export default function Home() {
         title: random.title,
         createdAt: random.created_at,
         entryCount: 0,
+        status: random.status,
       };
       setSelectedHeading(heading);
       await fetchEntriesForHeading(heading.id);
@@ -250,6 +284,7 @@ export default function Home() {
       .from("entries")
       .select("*")
       .eq("heading_id", headingId)
+      .eq("status", "approved")
       .order("created_at", { ascending: true });
 
     if (!error && data) {
@@ -259,9 +294,18 @@ export default function Home() {
         content: row.content,
         createdAt: row.created_at,
         author: row.author ?? null,
+        status: row.status,
       }));
       setEntries(mapped);
       await refreshVotes(mapped.map((m) => m.id));
+      
+      // Başlığın entry count'unu güncelle
+      setSelectedHeading((prev) => {
+        if (prev && prev.id === headingId) {
+          return { ...prev, entryCount: mapped.length };
+        }
+        return prev;
+      });
     }
     setLoading(false);
   }
@@ -402,6 +446,7 @@ export default function Home() {
         heading_id: selectedHeading.id,
         content: newEntryContent.trim(),
         author: userUsername || user.email?.split("@")[0] || "anonim",
+        status: "pending",
       })
       .select()
       .single();
@@ -412,12 +457,8 @@ export default function Home() {
       setShowBkzPanel(false);
       setBkzSearchTerm("");
       setBkzSearchResults([]);
-      // Entry'leri yeniden yükle
-      await fetchEntriesForHeading(selectedHeading.id);
-      // Başlık entry count'unu güncelle
-      const updatedHeading = { ...selectedHeading };
-      updatedHeading.entryCount++;
-      setSelectedHeading(updatedHeading);
+      // Kullanıcıya bilgi ver
+      alert("Entry'niz moderatör onayına gönderildi. Onaylandıktan sonra yayınlanacaktır.");
     }
 
     setSubmittingEntry(false);
@@ -437,16 +478,18 @@ export default function Home() {
       // Başlıklarda ara
       const { data: headingsData, error: headingsError } = await supabase
         .from("headings")
-        .select("id, title, created_at")
+        .select("id, title, created_at, status")
+        .eq("status", "approved")
         .ilike("title", `%${searchTerm}%`)
         .limit(20);
 
       if (!headingsError && headingsData) {
-        // Entry sayılarını al
+        // Entry sayılarını al (sadece approved)
         const headingIds = headingsData.map((h: any) => h.id);
         const { data: entryCounts } = await supabase
           .from("entries")
           .select("heading_id")
+          .eq("status", "approved")
           .in("heading_id", headingIds);
 
         const countMap = new Map<number, number>();
@@ -459,6 +502,7 @@ export default function Home() {
           title: row.title,
           createdAt: row.created_at,
           entryCount: countMap.get(row.id) ?? 0,
+          status: row.status,
         }));
 
         setSearchResults(mapped);
@@ -487,7 +531,10 @@ export default function Home() {
 
     const { data, error } = await supabase
       .from("headings")
-      .insert({ title: title.trim() })
+      .insert({ 
+        title: title.trim(),
+        status: "pending"
+      })
       .select()
       .single();
 
@@ -497,10 +544,13 @@ export default function Home() {
         title: data.title,
         createdAt: data.created_at,
         entryCount: 0,
+        status: data.status,
       };
       setSelectedHeading(newHeading);
       setSearchTerm("");
       setShowSearchResults(false);
+      // Kullanıcıya bilgi ver
+      alert("Başlığınız moderatör onayına gönderildi. Onaylandıktan sonra yayınlanacaktır.");
     }
 
     setLoading(false);
@@ -516,7 +566,8 @@ export default function Home() {
     try {
       const { data: headingsData, error: headingsError } = await supabase
         .from("headings")
-        .select("id, title, created_at")
+        .select("id, title, created_at, status")
+        .eq("status", "approved")
         .ilike("title", `%${searchText}%`)
         .limit(10);
 
@@ -525,6 +576,7 @@ export default function Home() {
         const { data: entryCounts } = await supabase
           .from("entries")
           .select("heading_id")
+          .eq("status", "approved")
           .in("heading_id", headingIds);
 
         const countMap = new Map<number, number>();
@@ -537,6 +589,7 @@ export default function Home() {
           title: row.title,
           createdAt: row.created_at,
           entryCount: countMap.get(row.id) ?? 0,
+          status: row.status,
         }));
 
         setBkzSearchResults(mapped);
@@ -589,7 +642,8 @@ export default function Home() {
             // Başlığı bul ve seç
             supabase
               .from("headings")
-              .select("id, title, created_at")
+              .select("id, title, created_at, status")
+              .eq("status", "approved")
               .ilike("title", headingTitle)
               .limit(1)
               .single()
@@ -600,6 +654,7 @@ export default function Home() {
                     title: data.title,
                     createdAt: data.created_at,
                     entryCount: 0,
+                    status: data.status,
                   };
                   handleSelectHeading(heading);
                 }
@@ -688,6 +743,84 @@ export default function Home() {
     await refreshVotes([entryId]);
   }
 
+  // Moderatör paneli fonksiyonları
+  async function fetchPendingContent() {
+    if (!isModerator) return;
+
+    // Bekleyen başlıkları getir
+    const { data: headingsData } = await supabase
+      .from("headings")
+      .select("id, title, created_at, status")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+
+    if (headingsData) {
+      const mapped: Heading[] = headingsData.map((row: any) => ({
+        id: row.id,
+        title: row.title,
+        createdAt: row.created_at,
+        entryCount: 0,
+        status: row.status,
+      }));
+      setPendingHeadings(mapped);
+    }
+
+    // Bekleyen entry'leri getir
+    const { data: entriesData } = await supabase
+      .from("entries")
+      .select("id, heading_id, content, author, created_at, status")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+
+    if (entriesData) {
+      const mapped: Entry[] = entriesData.map((row: any) => ({
+        id: row.id,
+        headingId: row.heading_id,
+        content: row.content,
+        createdAt: row.created_at,
+        author: row.author ?? null,
+        status: row.status,
+      }));
+      setPendingEntries(mapped);
+    }
+  }
+
+  async function updateHeadingStatus(headingId: number, newStatus: "approved" | "rejected") {
+    if (!isModerator) return;
+
+    const { error } = await supabase
+      .from("headings")
+      .update({ status: newStatus })
+      .eq("id", headingId);
+
+    if (!error) {
+      await fetchPendingContent();
+    }
+  }
+
+  async function updateEntryStatus(entryId: number, newStatus: "approved" | "rejected") {
+    if (!isModerator) return;
+
+    const { error } = await supabase
+      .from("entries")
+      .update({ status: newStatus })
+      .eq("id", entryId);
+
+    if (!error) {
+      await fetchPendingContent();
+      // Eğer entry onaylandıysa, başlığın entry count'unu güncelle
+      if (newStatus === "approved" && selectedHeading) {
+        await fetchEntriesForHeading(selectedHeading.id);
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (isModerator && showModeratorPanel) {
+      fetchPendingContent();
+    }
+  }, [isModerator, showModeratorPanel]);
+
   const mainBg = theme === "light" ? "bg-white text-zinc-900" : "bg-zinc-950 text-zinc-50";
   const panelBg = theme === "light" ? "bg-white" : "bg-zinc-900/60";
   const panelBorder = theme === "light" ? "border-zinc-200" : "border-zinc-800";
@@ -733,7 +866,7 @@ export default function Home() {
                 className={`text-lg md:text-xl font-bold ${
                   theme === "light" ? "text-red-600" : "text-red-400"
                 }`}
-                style={{ fontFamily: 'var(--font-paciencia)' }}
+                style={{ fontFamily: 'var(--font-chillax-bold)' }}
               >
                 İnanç Sözlük
               </div>
@@ -794,6 +927,20 @@ export default function Home() {
               </button>
               {user ? (
                 <>
+                  {isModerator && (
+                    <button
+                      onClick={() => setShowModeratorPanel(!showModeratorPanel)}
+                      className={`rounded-full border px-2 md:px-3 py-1 transition-colors ${
+                        showModeratorPanel
+                          ? "border-red-500 bg-red-500/10 text-red-300"
+                          : theme === "light"
+                          ? "border-zinc-300 bg-white text-zinc-700 hover:border-red-400 hover:bg-red-50"
+                          : "border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-red-500 hover:bg-zinc-800"
+                      }`}
+                    >
+                      moderatör
+                    </button>
+                  )}
                   <span className="hidden lg:inline text-zinc-400">
                     {userUsername || user.email?.split("@")[0] || "Kullanıcı"}
                   </span>
@@ -1212,6 +1359,114 @@ export default function Home() {
         </main>
         </div>
       </div>
+
+      {/* Moderatör Panel */}
+      {showModeratorPanel && isModerator && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setShowModeratorPanel(false)}
+        >
+          <div
+            className={`w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl border ${panelBorder} ${panelBg} p-4 sm:p-6 shadow-xl`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-zinc-100">
+                Moderatör Paneli
+              </h2>
+              <button
+                onClick={() => setShowModeratorPanel(false)}
+                className="rounded-md p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 touch-manipulation"
+                aria-label="Kapat"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Bekleyen Başlıklar */}
+              <div>
+                <h3 className="text-sm font-medium text-zinc-300 mb-3">
+                  Bekleyen Başlıklar ({pendingHeadings.length})
+                </h3>
+                {pendingHeadings.length === 0 ? (
+                  <p className="text-sm text-zinc-500">Bekleyen başlık yok.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {pendingHeadings.map((heading) => (
+                      <div
+                        key={heading.id}
+                        className={`flex items-center justify-between p-3 rounded-lg border ${panelBorder}`}
+                      >
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-zinc-100">{heading.title}</p>
+                          <p className="text-xs text-zinc-500">
+                            {new Date(heading.createdAt).toLocaleString("tr-TR")}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => updateHeadingStatus(heading.id, "approved")}
+                            className="px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-md hover:bg-green-500 active:bg-green-700 touch-manipulation"
+                          >
+                            Onayla
+                          </button>
+                          <button
+                            onClick={() => updateHeadingStatus(heading.id, "rejected")}
+                            className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-500 active:bg-red-700 touch-manipulation"
+                          >
+                            Reddet
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Bekleyen Entry'ler */}
+              <div>
+                <h3 className="text-sm font-medium text-zinc-300 mb-3">
+                  Bekleyen Entry'ler ({pendingEntries.length})
+                </h3>
+                {pendingEntries.length === 0 ? (
+                  <p className="text-sm text-zinc-500">Bekleyen entry yok.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {pendingEntries.map((entry) => (
+                      <div
+                        key={entry.id}
+                        className={`p-3 rounded-lg border ${panelBorder}`}
+                      >
+                        <p className="text-sm text-zinc-200 mb-2 whitespace-pre-wrap">{entry.content}</p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-zinc-500">
+                            {entry.author} • {new Date(entry.createdAt).toLocaleString("tr-TR")}
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => updateEntryStatus(entry.id, "approved")}
+                              className="px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-md hover:bg-green-500 active:bg-green-700 touch-manipulation"
+                            >
+                              Onayla
+                            </button>
+                            <button
+                              onClick={() => updateEntryStatus(entry.id, "rejected")}
+                              className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-500 active:bg-red-700 touch-manipulation"
+                            >
+                              Reddet
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Auth Modal */}
       {showAuthModal && (
