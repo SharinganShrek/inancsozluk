@@ -75,11 +75,19 @@ CREATE POLICY "Headings are viewable by everyone"
     )
   );
 
--- Entries: Sadece approved olanlar herkese görünür, pending/rejected olanlar sadece moderatörlere ve entry sahibine
+-- Önce mevcut politikaları sil (güncellemek için)
+DROP POLICY IF EXISTS "Entries are viewable by everyone" ON entries;
+DROP POLICY IF EXISTS "Users can view their own pending entries" ON entries;
+
+-- Entries: Sadece approved olanlar herkese görünür
 CREATE POLICY "Entries are viewable by everyone"
   ON entries FOR SELECT
+  USING (status = 'approved');
+
+-- Moderatörler tüm entry'leri (pending/rejected dahil) görebilir
+CREATE POLICY "Moderators can view all entries"
+  ON entries FOR SELECT
   USING (
-    status = 'approved' OR
     EXISTS (
       SELECT 1 FROM moderators 
       WHERE moderators.user_id = auth.uid()
@@ -87,21 +95,16 @@ CREATE POLICY "Entries are viewable by everyone"
   );
 
 -- Kullanıcılar kendi oluşturdukları pending entry'leri görebilir (INSERT sonrası select için gerekli)
+-- auth.users tablosuna erişim izni olmadığı için, sadece user_profiles ve author kontrolü yapıyoruz
 CREATE POLICY "Users can view their own pending entries"
   ON entries FOR SELECT
   USING (
     status = 'pending' AND
-    EXISTS (
-      SELECT 1 FROM auth.users
-      WHERE auth.users.id = auth.uid()
-      AND (
-        -- Eğer author email ise
-        entries.author = split_part(auth.users.email, '@', 1)
-        OR
-        -- Eğer author username ise (user_profiles'den kontrol et)
-        entries.author IN (
-          SELECT username FROM user_profiles WHERE user_id = auth.uid()
-        )
+    auth.uid() IS NOT NULL AND
+    (
+      -- Eğer author username ise (user_profiles'den kontrol et)
+      entries.author IN (
+        SELECT username FROM user_profiles WHERE user_id = auth.uid()
       )
     )
   );
@@ -196,6 +199,40 @@ ORDER BY entry_count DESC, h.created_at DESC;
 ```
 
 ## Notlar
+
+## Test ve Debug
+
+Eğer moderatör panelinde entry'ler görünmüyorsa, aşağıdaki sorguları Supabase SQL Editor'da çalıştırarak kontrol edin:
+
+```sql
+-- 1. Mevcut kullanıcının ID'sini kontrol et
+SELECT auth.uid() as current_user_id;
+
+-- 2. Mevcut kullanıcının moderatör olup olmadığını kontrol et
+SELECT id, user_id, created_at 
+FROM moderators 
+WHERE user_id = auth.uid();
+
+-- 3. Pending entry'leri kontrol et (moderatörse görmeli)
+SELECT id, heading_id, content, author, status, created_at 
+FROM entries 
+WHERE status = 'pending' 
+ORDER BY created_at DESC 
+LIMIT 10;
+
+-- 4. RLS politikalarını test et (doğrudan sorgu)
+-- Bu sorgu, RLS politikalarının çalışıp çalışmadığını test eder
+SELECT COUNT(*) as pending_count
+FROM entries 
+WHERE status = 'pending';
+```
+
+**ÖNEMLİ**: Eğer `auth.uid()` NULL dönüyorsa, kullanıcı authenticated değil demektir. Browser'da giriş yapmış olduğunuzdan emin olun.
+
+**403 hatası alıyorsanız:**
+1. Giriş yaptığınızdan emin olun
+2. Moderatör tablosunda kendi user_id'nizin olduğundan emin olun
+3. RLS politikalarının doğru uygulandığını kontrol edin (yukarıdaki Adım 4'teki sorguları tekrar çalıştırın)
 
 - Yeni başlık ve entry'ler otomatik olarak `pending` status'ü ile oluşturulacak
 - Sadece `approved` status'ündeki içerikler normal kullanıcılara görünecek

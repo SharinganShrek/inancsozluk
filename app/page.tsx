@@ -474,8 +474,13 @@ export default function Home() {
     alert("Entry'niz moderatör onayına gönderildi. Onaylandıktan sonra yayınlanacaktır.");
     
     // Eğer moderatör paneli açıksa, bekleyen entry'leri yenile
+    // (Moderatör paneli açık olmasa bile, eğer kullanıcı moderatörse paneli açtığında görebilmesi için biraz bekleyelim)
     if (isModerator && showModeratorPanel) {
       await fetchPendingContent();
+    } else if (isModerator) {
+      // Moderatörse ama panel kapalıysa, kısa bir gecikme sonrası yenile
+      // (Panel açıldığında useEffect tetiklenecek ama bu da yardımcı olabilir)
+      console.log("Entry oluşturuldu, moderatör paneli kapalı. Panel açıldığında görünecek.");
     }
 
     setSubmittingEntry(false);
@@ -786,7 +791,26 @@ export default function Home() {
 
   // Moderatör paneli fonksiyonları
   async function fetchPendingContent() {
-    if (!isModerator) return;
+    if (!isModerator) {
+      console.log("fetchPendingContent: isModerator = false, çıkılıyor");
+      return;
+    }
+
+    console.log("fetchPendingContent: Bekleyen entry'ler getiriliyor...");
+    console.log("fetchPendingContent: user?.id =", user?.id);
+    console.log("fetchPendingContent: isModerator =", isModerator);
+
+    // Önce moderatör durumunu doğrula
+    if (user?.id) {
+      const { data: moderatorCheck, error: moderatorError } = await supabase
+        .from("moderators")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+      
+      console.log("fetchPendingContent: moderatorCheck =", moderatorCheck);
+      console.log("fetchPendingContent: moderatorError =", moderatorError);
+    }
 
     // Bekleyen entry'leri getir
     const { data: entriesData, error } = await supabase
@@ -797,10 +821,18 @@ export default function Home() {
 
     if (error) {
       console.error("Bekleyen entry'leri getirme hatası:", error);
+      console.error("Hata mesajı:", error.message);
+      console.error("Hata kodu:", error.code);
+      console.error("Hata detayları:", error.details);
+      console.error("Hata hint:", error.hint);
+      setPendingEntries([]);
       return;
     }
 
-    if (entriesData) {
+    console.log("fetchPendingContent: entriesData =", entriesData);
+    console.log("fetchPendingContent: entriesData length =", entriesData?.length ?? 0);
+
+    if (entriesData && entriesData.length > 0) {
       const mapped: Entry[] = entriesData.map((row: any) => ({
         id: row.id,
         headingId: row.heading_id,
@@ -809,8 +841,10 @@ export default function Home() {
         author: row.author ?? null,
         status: row.status,
       }));
+      console.log("fetchPendingContent: mapped entries =", mapped.length);
       setPendingEntries(mapped);
     } else {
+      console.log("fetchPendingContent: Hiç entry yok, boş array ayarlanıyor");
       setPendingEntries([]);
     }
   }
